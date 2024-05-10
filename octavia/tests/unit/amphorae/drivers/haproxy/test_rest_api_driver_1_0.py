@@ -27,6 +27,7 @@ from octavia.amphorae.drivers.haproxy import exceptions as exc
 from octavia.amphorae.drivers.haproxy import rest_api_driver as driver
 from octavia.common import constants
 from octavia.common import data_models
+from octavia.common import exceptions
 from octavia.common import utils as octavia_utils
 from octavia.db import models
 from octavia.network import data_models as network_models
@@ -398,6 +399,21 @@ class TestHaproxyAmphoraLoadBalancerDriverTest(base.TestCase):
 
         self.assertEqual(ref_cert_dict, result)
 
+        # listener with pools in PENDING_DELETE
+        mock_pool_cert.reset_mock()
+
+        sample_listener = sample_configs_combined.sample_listener_tuple(
+            pool_provisioning_status=constants.PENDING_DELETE)
+
+        mock_pool_cert.side_effect = [ref_pool_cert_1, ref_pool_cert_2]
+
+        result = self.driver._process_listener_pool_certs(
+            sample_listener, self.amp, sample_listener.load_balancer.id)
+
+        mock_pool_cert.assert_not_called()
+
+        self.assertEqual({}, result)
+
     @mock.patch('octavia.amphorae.drivers.haproxy.rest_api_driver.'
                 'HaproxyAmphoraLoadBalancerDriver._process_secret')
     @mock.patch('octavia.amphorae.drivers.haproxy.rest_api_driver.'
@@ -568,6 +584,45 @@ class TestHaproxyAmphoraLoadBalancerDriverTest(base.TestCase):
         ]
         self.driver.clients[API_VERSION].delete_cert_pem.assert_has_calls(
             dcp_calls, any_order=True)
+
+        # Now just make sure we did an update and not a delete
+        self.driver.clients[API_VERSION].delete_listener.assert_not_called()
+        self.driver.clients[API_VERSION].upload_config.assert_called_once_with(
+            self.amp, sl.load_balancer.id, 'fake_config', timeout_dict=None)
+        # start should be called once
+        self.driver.clients[
+            API_VERSION].reload_listener.assert_called_once_with(
+            self.amp, sl.load_balancer.id, timeout_dict=None)
+
+    @mock.patch('octavia.amphorae.drivers.haproxy.rest_api_driver.'
+                'HaproxyAmphoraLoadBalancerDriver._process_secret')
+    @mock.patch('octavia.common.tls_utils.cert_parser.load_certificates_data')
+    @mock.patch('octavia.common.tls_utils.cert_parser.get_host_names')
+    def test_delete_second_listener_no_certs(self, mock_cert, mock_load_crt,
+                                             mock_secret):
+        self.driver.clients[
+            API_VERSION].delete_listener.__name__ = 'delete_listener'
+        sl = sample_configs_combined.sample_listener_tuple(
+            tls=True, sni=True, client_ca_cert=True, client_crl_cert=True,
+            recursive_nest=True)
+        sl2 = sample_configs_combined.sample_listener_tuple(
+            id='sample_listener_id_2')
+        sl.load_balancer.listeners.append(sl2)
+        mock_cert.return_value = {'cn': sample_certs.X509_CERT_CN}
+        mock_secret.side_effect = ['filename.pem', 'crl-filename.pem']
+        sconts = []
+        for sni_container in self.sl.sni_containers:
+            sconts.append(sni_container.tls_container)
+        mock_load_crt.side_effect = (
+            exceptions.CertificateRetrievalException(ref="error"),
+            {'tls_cert': self.sl.default_tls_container, 'sni_certs': sconts},
+            {'tls_cert': None, 'sni_certs': []})
+        self.driver.jinja_combo.build_config.side_effect = ['fake_config']
+        # Execute driver method
+        self.driver.delete(sl)
+
+        # Certificates is not reachable, we cannot delete it from the amphora
+        self.driver.clients[API_VERSION].delete_cert_pem.assert_not_called()
 
         # Now just make sure we did an update and not a delete
         self.driver.clients[API_VERSION].delete_listener.assert_not_called()

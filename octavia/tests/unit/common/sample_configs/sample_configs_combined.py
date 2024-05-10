@@ -750,7 +750,8 @@ def sample_listener_tuple(proto=None, monitor=True, alloc_default_pool=True,
                 tls_ciphers=backend_tls_ciphers,
                 tls_versions=backend_tls_versions,
                 enabled=pool_enabled,
-                alpn_protocols=backend_alpn_protocols),
+                alpn_protocols=backend_alpn_protocols,
+                provisioning_status=pool_provisioning_status),
             sample_pool_tuple(
                 proto=be_proto, monitor=monitor, persistence=persistence,
                 persistence_type=persistence_type,
@@ -763,7 +764,8 @@ def sample_listener_tuple(proto=None, monitor=True, alloc_default_pool=True,
                 tls_ciphers=backend_tls_ciphers,
                 tls_versions=None,
                 enabled=pool_enabled,
-                alpn_protocols=backend_alpn_protocols)]
+                alpn_protocols=backend_alpn_protocols,
+                provisioning_status=pool_provisioning_status)]
         l7policies = [
             sample_l7policy_tuple('sample_l7policy_id_1', sample_policy=1),
             sample_l7policy_tuple('sample_l7policy_id_2', sample_policy=2),
@@ -790,7 +792,8 @@ def sample_listener_tuple(proto=None, monitor=True, alloc_default_pool=True,
                 tls_ciphers=backend_tls_ciphers,
                 tls_versions=backend_tls_versions,
                 enabled=pool_enabled,
-                alpn_protocols=backend_alpn_protocols)]
+                alpn_protocols=backend_alpn_protocols,
+                provisioning_status=pool_provisioning_status)]
         l7policies = []
     listener = in_listener(
         id=id,
@@ -816,7 +819,8 @@ def sample_listener_tuple(proto=None, monitor=True, alloc_default_pool=True,
             tls_enabled=tls_enabled,
             hm_host_http_check=hm_host_http_check,
             sample_pool=sample_default_pool,
-            enabled=pool_enabled
+            enabled=pool_enabled,
+            provisioning_status=pool_provisioning_status
         ) if alloc_default_pool else '',
         connection_limit=connection_limit,
         tls_certificate_id='cont_id_1' if tls else '',

@@ -33,6 +33,7 @@ from octavia.amphorae.drivers.haproxy import exceptions as exc
 from octavia.amphorae.drivers.keepalived import vrrp_rest_driver
 from octavia.common.config import cfg
 from octavia.common import constants as consts
+from octavia.common import exceptions
 import octavia.common.jinja.haproxy.combined_listeners.jinja_cfg as jinja_combo
 from octavia.common.jinja.lvs import jinja_cfg as jinja_udp_cfg
 from octavia.common.tls_utils import cert_parser
@@ -294,21 +295,30 @@ class HaproxyAmphoraLoadBalancerDriver(
         if listener in listener.load_balancer.listeners:
             listener.load_balancer.listeners.remove(listener)
 
-        # Check if there's any certs that we need to delete
-        certs = self._process_tls_certificates(listener)
-        certs_to_delete = set()
-        if certs['tls_cert']:
-            certs_to_delete.add(certs['tls_cert'].id)
-        for sni_cert in certs['sni_certs']:
-            certs_to_delete.add(sni_cert.id)
-
-        # Delete them (they'll be recreated before the reload if they are
-        # needed for other listeners anyway)
         self._populate_amphora_api_version(amphora)
-        for cert_id in certs_to_delete:
-            self.clients[amphora.api_version].delete_cert_pem(
-                amphora, listener.load_balancer.id,
-                '{id}.pem'.format(id=cert_id))
+
+        # Check if there's any certs that we need to delete
+        try:
+            certs = self._process_tls_certificates(listener)
+        except exceptions.CertificateRetrievalException:
+            # Certificates might have been already removed from the store
+            certs = None
+            LOG.error("Cannot retrieve certificate, skipping "
+                      "certificate removal.")
+
+        if certs:
+            certs_to_delete = set()
+            if certs['tls_cert']:
+                certs_to_delete.add(certs['tls_cert'].id)
+            for sni_cert in certs['sni_certs']:
+                certs_to_delete.add(sni_cert.id)
+
+            # Delete them (they'll be recreated before the reload if they are
+            # needed for other listeners anyway)
+            for cert_id in certs_to_delete:
+                self.clients[amphora.api_version].delete_cert_pem(
+                    amphora, listener.load_balancer.id,
+                    '{id}.pem'.format(id=cert_id))
 
         # See how many non-UDP/SCTP listeners we have left
         non_lvs_listener_count = len([
@@ -492,7 +502,8 @@ class HaproxyAmphoraLoadBalancerDriver(
         #         'crl': crl_full_filename}}
         pool_certs_dict = {}
         for pool in listener.pools:
-            if pool.id not in pool_certs_dict:
+            if (pool.id not in pool_certs_dict and
+                    pool.provisioning_status != consts.PENDING_DELETE):
                 pool_certs_dict[pool.id] = self._process_pool_certs(
                     listener, pool, amphora, obj_id)
         for l7policy in listener.l7policies:

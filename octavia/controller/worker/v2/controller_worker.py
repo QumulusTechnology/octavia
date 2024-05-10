@@ -664,7 +664,7 @@ class ControllerWorker(object):
 
         load_balancer = db_pool.load_balancer
         provider_lb = provider_utils.db_loadbalancer_to_provider_loadbalancer(
-            load_balancer).to_dict(recurse=True)
+            load_balancer, for_delete=True).to_dict(recurse=True)
         listeners_dicts = provider_lb.get('listeners', [])
 
         store = {constants.POOL_ID: pool[constants.POOL_ID],
