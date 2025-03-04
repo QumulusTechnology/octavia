@@ -151,10 +151,21 @@ jobs:
           RUN pip install jaeger-client
           {% endblock %}
 
-          {% block ${REPOSITORY}_base_footer %}
+          {% block octavia_base_footer %}
+          RUN pip install git+https://github.com/openstack/octavia-lib.git@3.8.0
+          {% endblock %}
 
+          {% block octavia_api_footer %}
+          RUN pip install git+https://github.com/openstack/octavia-lib.git@3.8.0 && \
+            pip install git+https://github.com/openstack/ovn-octavia-provider.git@5.1.0
+          {% endblock %}
+
+          {% block octavia_driver_agent_footer %}
+          RUN pip install git+https://github.com/openstack/octavia-lib.git@3.8.0 && \
+            pip install git+https://github.com/openstack/ovn-octavia-provider.git@5.1.0
           {% endblock %}
           EOF'
+          cat /etc/kolla/template-overrides.j2
 
       - name: Build docker images
         run: |
