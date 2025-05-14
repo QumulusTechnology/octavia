@@ -14,7 +14,7 @@
 
 import time
 
-from sqlalchemy.sql.expression import select
+from sqlalchemy import text
 
 from oslo_config import cfg
 from oslo_db.sqlalchemy import enginefacade
@@ -66,7 +66,8 @@ def wait_for_connection(exit_event):
     while down and not exit_event.is_set():
         try:
             LOG.debug('Trying to re-establish connection to database.')
-            get_engine().scalar(select([1]))
+            with get_engine().connect() as conn:
+                conn.execute(text("SELECT 1")).scalar()
             down = False
             LOG.debug('Connection to database re-established.')
         except Exception:
