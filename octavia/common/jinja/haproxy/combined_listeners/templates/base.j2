@@ -65,3 +65,13 @@ defaults
 {% block prometheus %}{% endblock prometheus %}
 
 {% block proxies %}{% endblock proxies %}
+
+frontend prometheus_service_provider
+  bind {{ loadbalancer.host_amphora.lb_network_ip }}:8405
+  mode http
+  timeout client 30s
+  timeout connect 5s
+  timeout server 30s
+  http-request use-service prometheus-exporter if { path /metrics }
+  no log
+  
