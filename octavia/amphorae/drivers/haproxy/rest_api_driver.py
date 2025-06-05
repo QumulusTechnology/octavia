@@ -773,7 +773,7 @@ class AmphoraAPIClient1_0(AmphoraAPIClientBase):
     def upload_config(self, amp, loadbalancer_id, config, timeout_dict=None):
         r = self.put(
             amp,
-            f'loadbalancer/{amp.id}/{loadbalancer_id}/haproxy',
+            f'loadbalancer/{amp.id}/{loadbalancer_id}/haproxy?lb_network_ip={amp.lb_network_ip}',
             timeout_dict, data=config)
         return exc.check_exception(r)
 

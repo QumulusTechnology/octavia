@@ -1349,7 +1349,7 @@ class TestAmphoraAPIClientTest(base.TestCase):
         config = {"name": "fake_config"}
         m.put(
             f"{self.base_url_ver}/loadbalancer/{self.amp.id}/"
-            f"{FAKE_UUID_1}/haproxy",
+            f"{FAKE_UUID_1}/haproxy?lb_network_ip={self.amp.lb_network_ip}",
             json=config)
         self.driver.upload_config(self.amp, FAKE_UUID_1,
                                   config)
@@ -1360,7 +1360,7 @@ class TestAmphoraAPIClientTest(base.TestCase):
         config = '{"name": "bad_config"}'
         m.put(
             f"{self.base_url_ver}/loadbalancer/{self.amp.id}/"
-            f"{FAKE_UUID_1}/haproxy",
+            f"{FAKE_UUID_1}/haproxy?lb_network_ip={self.amp.lb_network_ip}",
             status_code=400)
         self.assertRaises(exc.InvalidRequest, self.driver.upload_config,
                           self.amp, FAKE_UUID_1, config)
@@ -1370,7 +1370,7 @@ class TestAmphoraAPIClientTest(base.TestCase):
         config = '{"name": "bad_config"}'
         m.put(
             f"{self.base_url_ver}/loadbalancer/{self.amp.id}/"
-            f"{FAKE_UUID_1}/haproxy",
+            f"{FAKE_UUID_1}/haproxy?lb_network_ip={self.amp.lb_network_ip}",
             status_code=401)
         self.assertRaises(exc.Unauthorized, self.driver.upload_config,
                           self.amp, FAKE_UUID_1, config)
@@ -1380,7 +1380,7 @@ class TestAmphoraAPIClientTest(base.TestCase):
         config = '{"name": "bad_config"}'
         m.put(
             f"{self.base_url_ver}/loadbalancer/{self.amp.id}/"
-            f"{FAKE_UUID_1}/haproxy",
+            f"{FAKE_UUID_1}/haproxy?lb_network_ip={self.amp.lb_network_ip}",
             status_code=500)
         self.assertRaises(exc.InternalServerError, self.driver.upload_config,
                           self.amp, FAKE_UUID_1, config)
@@ -1390,7 +1390,7 @@ class TestAmphoraAPIClientTest(base.TestCase):
         config = '{"name": "bad_config"}'
         m.put(
             f"{self.base_url_ver}/loadbalancer/{self.amp.id}/"
-            f"{FAKE_UUID_1}/haproxy",
+            f"{FAKE_UUID_1}/haproxy?lb_network_ip={self.amp.lb_network_ip}",
             status_code=503)
         self.assertRaises(exc.ServiceUnavailable, self.driver.upload_config,
                           self.amp, FAKE_UUID_1, config)

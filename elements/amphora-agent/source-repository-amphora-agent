@@ -1,3 +1,3 @@
 # This is used for source-based builds
-amphora-agent git /opt/amphora-agent https://opendev.org/openstack/octavia stable/2025.1
-upper-constraints file /opt/upper-constraints.txt https://releases.openstack.org/constraints/upper/2025.1
+amphora-agent git /opt/amphora-agent ${DIB_REPOLOCATION_amphora_agent:-https://github.com/QumulusTechnology/octavia} ${DIB_REPOREF_amphora_agent:-stable/2025.1}
+upper-constraints file /opt/upper-constraints.txt ${DIB_REPOLOCATION_upper_constraints:-https://releases.openstack.org/constraints/upper/2025.1}

@@ -41,3 +41,6 @@ tempest.log
 # Files created by releasenotes build
 releasenotes/build
 api-ref/build
+diskimage-create/amphora-x64-haproxy.d
+diskimage-create/diskimage-create.*
+amphora-x64-haproxy.d

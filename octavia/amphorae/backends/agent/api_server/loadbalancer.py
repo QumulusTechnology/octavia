@@ -86,11 +86,12 @@ class Loadbalancer:
                             usedforsecurity=False).hexdigest())  # nosec
             return resp
 
-    def upload_haproxy_config(self, amphora_id, lb_id):
+    def upload_haproxy_config(self, amphora_id, lb_id, lb_network_ip):
         """Upload the haproxy config
 
         :param amphora_id: The id of the amphora to update
         :param lb_id: The id of the loadbalancer
+        :param lb_network_ip: The IP of the loadbalancer network
         """
         stream = Wrapped(flask.request.stream)
         # We have to hash here because HAProxy has a string length limitation
@@ -149,6 +150,15 @@ class Loadbalancer:
         util.install_netns_systemd_service()
         util.run_systemctl_command(
             consts.ENABLE, consts.AMP_NETNS_SVC_PREFIX + '.service', False)
+
+        LOG.info("Installing haproxy metrics proxy systemd service with "
+                 "lb_network_ip: %s", lb_network_ip)
+        util.install_haproxy_metrics_proxy_systemd_service(lb_network_ip)
+        util.run_systemctl_command(
+            consts.ENABLE, 'haproxy-metrics-proxy.service', False)
+        util.run_systemctl_command(
+            consts.RESTART, 'haproxy-metrics-proxy.service', False)
+        LOG.info("Haproxy metrics proxy systemd service installed and enabled.")
 
         # mode 00644
         mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH

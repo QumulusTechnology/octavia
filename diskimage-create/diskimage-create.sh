@@ -41,6 +41,7 @@ usage() {
     echo "            [-v]"
     echo "            [-w <working directory> ]"
     echo "            [-x]"
+    echo "            [-z <custom repo url> ]"
     echo
     echo "        '-a' is the architecture type for the image (default: amd64)"
     echo "        '-b' is the backend type (default: haproxy)"
@@ -64,6 +65,7 @@ usage() {
     echo "        '-w' working directory for image building (default: .)"
     echo "        '-x' enable tracing for diskimage-builder"
     echo "        '-y' enable FIPS 140-2 mode in the amphora image"
+    echo "        '-z' custom repository for amphora agent"
     echo
     exit 1
 }
@@ -94,7 +96,7 @@ dib_enable_tracing=
 
 AMP_LOGFILE=""
 
-while getopts "a:b:c:d:efg:hi:k:l:mno:pt:r:s:vw:xy" opt; do
+while getopts "a:b:c:d:efg:hi:k:l:mno:pt:r:s:vw:xyz:" opt; do
     case $opt in
         a)
             AMP_ARCH=$OPTARG
@@ -133,7 +135,7 @@ while getopts "a:b:c:d:efg:hi:k:l:mno:pt:r:s:vw:xy" opt; do
             else
                 echo "Environment variable DIB_REPOREF_amphora_agent is set. Building the image with amphora agent $DIB_REPOREF_amphora_agent."
             fi
-            if [ -z "$DIB_REPOLOCATION_upper_constraints" ]; then
+            if [ -z "$DIB_REPOLOCATION_upper_constraints" ] && [ -z "$DIB_REPOLOCATION_amphora_agent" ]; then
                 echo "Using upper constraints from https://opendev.org/openstack/requirements/raw/branch/$OPTARG/upper-constraints.txt."
                 export DIB_REPOLOCATION_upper_constraints="https://opendev.org/openstack/requirements/raw/branch/$OPTARG/upper-constraints.txt"
             else
@@ -218,6 +220,14 @@ while getopts "a:b:c:d:efg:hi:k:l:mno:pt:r:s:vw:xy" opt; do
         ;;
         y)  AMP_ENABLE_FIPS=1
         ;;
+        z)
+            if [ -z "$DIB_REPOLOCATION_amphora_agent" ]; then
+                echo "Building image with amphora agent from custom repository $OPTARG."
+                export DIB_REPOLOCATION_amphora_agent=$OPTARG
+            else
+                echo "Environment variable DIB_REPOLOCATION_amphora_agent is set. Building the image with amphora agent from $DIB_REPOLOCATION_amphora_agent."
+            fi
+        ;;
         *)
             usage
         ;;
@@ -242,7 +252,7 @@ AMP_CACHEDIR="$( cd "$AMP_CACHEDIR" && pwd )"
 AMP_BASEOS=${AMP_BASEOS:-"ubuntu-minimal"}
 
 if [ "$AMP_BASEOS" = "ubuntu-minimal" ]; then
-    export DIB_RELEASE=${AMP_DIB_RELEASE:-"jammy"}
+    export DIB_RELEASE=${AMP_DIB_RELEASE:-"noble"}
 elif [ "${AMP_BASEOS}" = "rhel" ]; then
     export DIB_RELEASE=${AMP_DIB_RELEASE:-"9"}
 elif [ "${AMP_BASEOS}" = "centos-minimal" ]; then

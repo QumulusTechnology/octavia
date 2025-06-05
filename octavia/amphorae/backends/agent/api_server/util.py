@@ -195,6 +195,26 @@ def is_lvs_listener_running(listener_id):
     return os.path.exists(pid_file) and os.path.exists(
         os.path.join('/proc', get_keepalivedlvs_pid(listener_id)))
 
+def install_haproxy_metrics_proxy_systemd_service(lb_network_ip):
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    # mode 00644
+    mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
+
+    # TODO(bcafarel): implement this for other init systems
+    # haproxy metrics proxy handling depends on a separate unit file
+    metrics_proxy_path = os.path.join(consts.SYSTEMD_DIR,
+                                     'haproxy-metrics-proxy.service')
+
+    jinja_env = jinja2.Environment(
+        autoescape=True, loader=jinja2.FileSystemLoader(os.path.dirname(
+            os.path.realpath(__file__)
+        ) + consts.AGENT_API_TEMPLATES))
+
+    with os.fdopen(os.open(metrics_proxy_path, flags, mode), 'w') as text_file:
+        text = jinja_env.get_template(
+            'haproxy-metrics-proxy.systemd.j2').render(
+                bind_ip=lb_network_ip)
+        text_file.write(text)
 
 def install_netns_systemd_service():
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC

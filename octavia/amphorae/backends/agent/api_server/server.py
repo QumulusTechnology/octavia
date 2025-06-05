@@ -145,7 +145,9 @@ class Server:
                               methods=['PUT'])
 
     def upload_haproxy_config(self, amphora_id, lb_id):
-        return self._loadbalancer.upload_haproxy_config(amphora_id, lb_id)
+        lb_network_ip = flask.request.args.get('lb_network_ip')
+        return self._loadbalancer.upload_haproxy_config(
+            amphora_id, lb_id, lb_network_ip)
 
     def upload_lvs_listener_config(self, amphora_id, listener_id):
         return self._lvs_listener.upload_lvs_listener_config(listener_id)
