@@ -50,3 +50,4 @@ case "$DIB_INIT_SYSTEM" in
         exit 1
         ;;
 esac
+

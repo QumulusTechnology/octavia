@@ -17,6 +17,8 @@
 
 set -e
 
+DIB_REPOLOCATION_upper_constraints="https://opendev.org/openstack/requirements/raw/branch/stable/2025.1/upper-constraints.txt"
+
 usage() {
     echo
     echo "Usage: $(basename "$0")"
@@ -263,7 +265,7 @@ elif [ "${AMP_BASEOS}" = "rocky-container" ]; then
     export DIB_RELEASE=${AMP_DIB_RELEASE:-"9"}
 fi
 
-AMP_OUTPUTFILENAME=${AMP_OUTPUTFILENAME:-"$PWD/amphora-x64-haproxy.qcow2"}
+AMP_OUTPUTFILENAME=${AMP_OUTPUTFILENAME:-"$PWD/amphora-x64-haproxy-$(git rev-parse --abbrev-ref HEAD)-latest.qcow2"}
 
 AMP_IMAGETYPE=${AMP_IMAGETYPE:-"qcow2"}
 
@@ -443,6 +445,7 @@ pushd "$TEMP" > /dev/null
 # Setup the elements list
 
 AMP_element_sequence=${AMP_element_sequence:-"base vm"}
+
 if [ "${AMP_BASEOS}" = "rhel" ] && [ "${DIB_RELEASE}" = "8" ]; then
     export DIB_INSTALLTYPE_pip_and_virtualenv=package
 fi
@@ -465,6 +468,7 @@ AMP_element_sequence="$AMP_element_sequence rebind-sshd"
 AMP_element_sequence="$AMP_element_sequence no-resolvconf"
 AMP_element_sequence="$AMP_element_sequence amphora-agent"
 AMP_element_sequence="$AMP_element_sequence octavia-lib"
+AMP_element_sequence="$AMP_element_sequence alloy"
 AMP_element_sequence="$AMP_element_sequence sos"
 AMP_element_sequence="$AMP_element_sequence cloud-init-datasources"
 AMP_element_sequence="$AMP_element_sequence remove-default-ints"
@@ -551,3 +555,4 @@ else
     echo "Successfully built the amphora using the $DIB_REPOREF_amphora_agent amphora-agent."
 fi
 echo "Amphora image size: `stat -c "%n %s" $AMP_OUTPUTFILENAME`"
+sha256sum "$AMP_OUTPUTFILENAME" > "$AMP_OUTPUTFILENAME.SHA256SUM"

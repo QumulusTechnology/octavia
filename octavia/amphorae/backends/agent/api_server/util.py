@@ -239,6 +239,31 @@ def install_netns_systemd_service():
             text_file.write(text)
 
 
+import json
+import urllib.request
+
+def update_alloy_configuration(loadbalancer_id, branch, cloud_fqdn):
+    # Fetch project_id from metadata service
+    try:
+        with urllib.request.urlopen("http://169.254.169.254/openstack/2025-04-04/meta_data.json") as response:
+            metadata = json.load(response)
+            project_id = metadata.get("project_id", "")
+    except Exception as e:
+        LOG.error(f"Failed to fetch project_id from metadata service: {e}")
+        project_id = ""
+
+    with open('/etc/alloy/config.alloy', 'r') as f:
+        config = f.read()
+    config = config.replace('%PROJECT_ID%', project_id)
+    config = config.replace('%LB_ID%', loadbalancer_id)
+    config = config.replace('%SCOPE_ORG_ID%', branch)
+    config = config.replace('%ENV%', branch)
+    config = config.replace('%CLOUD_FQDN%', cloud_fqdn)
+
+    with open('/etc/alloy/config.alloy', 'w') as f:
+        f.write(config)
+
+
 def run_systemctl_command(command, service, raise_error=True):
     cmd = f"systemctl {command} {service}"
     try:

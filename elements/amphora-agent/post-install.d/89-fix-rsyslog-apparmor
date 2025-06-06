@@ -1,0 +1,4 @@
+#!/bin/bash
+
+sed -i '/\/dev\/log.*rwl,/a \  \/run\/rsyslog\/                  rw,\n  \/run\/rsyslog\/**               rwl,' /etc/apparmor.d/usr.sbin.rsyslogd
+sudo sed -i '/\/dev\/log.*rwl,/a \  \/run\/rsyslog\/octavia\/         rw,\n  \/run\/rsyslog\/octavia\/**       rwl,' /etc/apparmor.d/usr.sbin.rsyslogd

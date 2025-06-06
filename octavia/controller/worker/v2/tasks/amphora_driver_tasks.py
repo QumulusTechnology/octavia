@@ -33,6 +33,7 @@ from octavia.controller.worker import task_utils as task_utilities
 from octavia.db import api as db_apis
 from octavia.db import repositories as repo
 from octavia.network import data_models
+import re
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
