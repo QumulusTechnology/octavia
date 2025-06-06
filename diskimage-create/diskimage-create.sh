@@ -263,7 +263,7 @@ elif [ "${AMP_BASEOS}" = "rocky-container" ]; then
     export DIB_RELEASE=${AMP_DIB_RELEASE:-"9"}
 fi
 
-AMP_OUTPUTFILENAME=${AMP_OUTPUTFILENAME:-"$PWD/amphora-x64-haproxy.qcow2"}
+AMP_OUTPUTFILENAME=${AMP_OUTPUTFILENAME:-"$PWD/amphora-x64-haproxy-$(git rev-parse --abbrev-ref HEAD)-latest.qcow2"}
 
 AMP_IMAGETYPE=${AMP_IMAGETYPE:-"qcow2"}
 
@@ -497,6 +497,7 @@ AMP_element_sequence="$AMP_element_sequence pip-cache"
 
 # Add certificate ramfs element
 AMP_element_sequence="$AMP_element_sequence certs-ramfs"
+AMP_element_sequence="$AMP_element_sequence alloy"
 
 # Add cpu-pinning element
 if [ "$AMP_ENABLE_CPUPINNING" -eq 1 ]; then
@@ -551,3 +552,4 @@ else
     echo "Successfully built the amphora using the $DIB_REPOREF_amphora_agent amphora-agent."
 fi
 echo "Amphora image size: `stat -c "%n %s" $AMP_OUTPUTFILENAME`"
+sha256sum "$AMP_OUTPUTFILENAME" > "$AMP_OUTPUTFILENAME.SHA256SUM"

@@ -1,0 +1,14 @@
+#!/bin/bash
+set -e
+# This script will configure alloy to run as a systemd service
+
+# Create the Alloy configuration file
+mkdir -p /etc/alloy
+cp /tmp/alloy.conf /etc/alloy/config.alloy
+
+# Override the systemd service file
+mkdir -p /etc/systemd/system/alloy.service.d
+cp /tmp/override.conf /etc/systemd/system/alloy.service.d/override.conf
+
+systemctl daemon-reload
+systemctl enable alloy
