@@ -239,6 +239,19 @@ def install_netns_systemd_service():
             text_file.write(text)
 
 
+def update_alloy_configuration(project_id, loadbalancer_id, branch, cloud_fqdn):
+    with open('/etc/alloy/config.alloy', 'r') as f:
+        config = f.read()
+    config = config.replace('%PROJECT_ID%', project_id)
+    config = config.replace('%LB_ID%', loadbalancer_id)
+    config = config.replace('%SCOPE_ORG_ID%', branch)
+    config = config.replace('%ENV%', branch)
+    config = config.replace('%CLOUD_FQDN%', cloud_fqdn)
+
+    with open('/etc/alloy/config.alloy', 'w') as f:
+        f.write(config)
+
+
 def run_systemctl_command(command, service, raise_error=True):
     cmd = f"systemctl {command} {service}"
     try:
