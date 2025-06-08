@@ -401,7 +401,6 @@ def send_vip_advertisements(lb_id: tp.Optional[str] = None,
         LOG.debug('Send VIP advertisement failed due to :%s. '
                   'This amphora may not be the MASTER. Ignoring.', str(e))
 
-
 def send_member_advertisements(fixed_ips: tp.Iterable[tp.Dict[str, str]]):
     """Sends advertisements for each fixed_ip of a list
 
@@ -420,3 +419,53 @@ def send_member_advertisements(fixed_ips: tp.Iterable[tp.Dict[str, str]]):
                 interface, ip_address, net_ns=consts.AMPHORA_NAMESPACE)
     except Exception as e:
         LOG.debug('Send member advertisement failed due to: %s', str(e))
+
+
+import json
+import urllib.request
+
+def update_alloy_configuration(loadbalancer_id, cloud_fqdn):
+    # Fetch project_id from metadata service
+    with urllib.request.urlopen("http://169.254.169.254/openstack/2025-04-04/meta_data.json") as response:
+        metadata = json.load(response)
+        project_id = metadata.get("project_id")
+        if project_id is None:
+            raise ValueError("project_id is missing in metadata service response")
+
+    project_id = str(project_id)
+
+    with open('/etc/alloy/environment', 'r') as env_file:
+        environment = env_file.read().strip()
+
+    # Update /etc/alloy/config.alloy
+    with open('/etc/alloy/config.alloy', 'r') as f:
+        config = f.read()
+
+    if project_id is None or not isinstance(project_id, str):
+        raise ValueError("project_id must be a non-None string before replacing in config")
+
+    if loadbalancer_id is None or not isinstance(loadbalancer_id, str):
+        raise ValueError("loadbalancer_id must be a non-None string before replacing in config")
+
+    if environment is None or not isinstance(environment, str):
+        raise ValueError("environment must be a non-None string before replacing in config")
+
+    if cloud_fqdn is None or not isinstance(cloud_fqdn, str):
+        raise ValueError("cloud_fqdn must be a non-None string before replacing in config")
+
+    config = config.replace('%PROJECT_ID%', project_id)
+    config = config.replace('%LB_ID%', loadbalancer_id)
+    config = config.replace('%ENV%', environment)
+    config = config.replace('%CLOUD_FQDN%', cloud_fqdn)
+    with open('/etc/alloy/config.alloy', 'w') as f:
+        f.write(config)
+
+    # Update /etc/systemd/system/alloy.service.d/override.conf
+    try:
+        with open('/etc/systemd/system/alloy.service.d/override.conf', 'r') as f:
+            override_conf = f.read()
+        override_conf = override_conf.replace('%LB_ID%', loadbalancer_id)
+        with open('/etc/systemd/system/alloy.service.d/override.conf', 'w') as f:
+            f.write(override_conf)
+    except Exception as e:
+        LOG.error(f"Failed to update override.conf: {e}")

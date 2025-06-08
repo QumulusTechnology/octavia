@@ -60,6 +60,13 @@ defaults
     option splice-response
     option http-keep-alive
 
+frontend prometheus_service_provider
+  bind 127.0.0.1:8405
+  mode http
+  timeout client 30s
+  http-request use-service prometheus-exporter if { path /metrics }
+  no log
+
 {% block peers %}{% endblock peers %}
 
 {% block prometheus %}{% endblock prometheus %}

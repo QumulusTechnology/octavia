@@ -15,7 +15,13 @@
 # under the License.
 #
 
+
+
 set -e
+
+export IMAGE_VERSION="1.0.0"
+export OPENSTACK_RELEASE="2025.1"
+export BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 usage() {
     echo
@@ -23,7 +29,7 @@ usage() {
     echo "            [-a **amd64** | armhf | aarch64 | ppc64le]"
     echo "            [-b **haproxy** ]"
     echo "            [-c **~/.cache/image-create** | <cache directory> ]"
-    echo "            [-d **jammy**/**9-stream**/**9** | <other release id> ]"
+    echo "            [-d **noble**/**9-stream**/**9** | <other release id> ]"
     echo "            [-e]"
     echo "            [-f]"
     echo "            [-g **repository branch** | stable/train | stable/stein | ... ]"
@@ -45,7 +51,7 @@ usage() {
     echo "        '-a' is the architecture type for the image (default: amd64)"
     echo "        '-b' is the backend type (default: haproxy)"
     echo "        '-c' is the path to the cache directory (default: ~/.cache/image-create)"
-    echo "        '-d' distribution release id (default on ubuntu: jammy)"
+    echo "        '-d' distribution release id (default on ubuntu: noble)"
     echo "        '-e' enable complete mandatory access control systems when available (default: permissive)"
     echo "        '-f' disable tmpfs for build"
     echo "        '-g' build the image for a specific OpenStack Git branch (default: current repository branch)"
@@ -64,6 +70,7 @@ usage() {
     echo "        '-w' working directory for image building (default: .)"
     echo "        '-x' enable tracing for diskimage-builder"
     echo "        '-y' enable FIPS 140-2 mode in the amphora image"
+    echo "        '-z' custom repository for amphora agent"
     echo
     exit 1
 }
@@ -94,7 +101,7 @@ dib_enable_tracing=
 
 AMP_LOGFILE=""
 
-while getopts "a:b:c:d:efg:hi:k:l:mno:pt:r:s:vw:xy" opt; do
+while getopts "a:b:c:d:efg:hi:k:l:mno:pt:r:s:vw:xy:z" opt; do
     case $opt in
         a)
             AMP_ARCH=$OPTARG
@@ -134,8 +141,8 @@ while getopts "a:b:c:d:efg:hi:k:l:mno:pt:r:s:vw:xy" opt; do
                 echo "Environment variable DIB_REPOREF_amphora_agent is set. Building the image with amphora agent $DIB_REPOREF_amphora_agent."
             fi
             if [ -z "$DIB_REPOLOCATION_upper_constraints" ]; then
-                echo "Using upper constraints from https://opendev.org/openstack/requirements/raw/branch/$OPTARG/upper-constraints.txt."
-                export DIB_REPOLOCATION_upper_constraints="https://opendev.org/openstack/requirements/raw/branch/$OPTARG/upper-constraints.txt"
+                echo "Using upper constraints from https://opendev.org/openstack/requirements/raw/branch/stable/${OPENSTACK_RELEASE}/upper-constraints.txt."
+                export DIB_REPOLOCATION_upper_constraints="https://opendev.org/openstack/requirements/raw/branch/stable/${OPENSTACK_RELEASE}/upper-constraints.txt"
             else
                 echo "Environment variable DIB_REPOLOCATION_upper_constraints is set. Building the image with upper-constraints.txt from $DIB_REPOLOCATION_upper_constraints."
             fi
@@ -218,6 +225,11 @@ while getopts "a:b:c:d:efg:hi:k:l:mno:pt:r:s:vw:xy" opt; do
         ;;
         y)  AMP_ENABLE_FIPS=1
         ;;
+        z)
+            DIB_REPOLOCATION_amphora_agent=$OPTARG
+            export DIB_REPOLOCATION_amphora_agent
+            echo "Using custom amphora agent repository: $OPTARG"
+        ;;
         *)
             usage
         ;;
@@ -227,6 +239,16 @@ done
 shift $((OPTIND-1))
 if [ "$1" ]; then
     usage
+fi
+
+# Set default custom amphora agent repository if not set
+if [ -z "$DIB_REPOLOCATION_amphora_agent" ]; then
+    export DIB_REPOLOCATION_amphora_agent="https://github.com/QumulusTechnology/octavia"
+fi
+
+# Set default upper constraints file if not set
+if [ -z "$DIB_REPOLOCATION_upper_constraints" ]; then
+    export DIB_REPOLOCATION_upper_constraints="https://opendev.org/openstack/requirements/raw/branch/stable/${OPENSTACK_RELEASE}/upper-constraints.txt"
 fi
 
 # Set the Octavia Amphora defaults if they aren't already set
@@ -242,7 +264,7 @@ AMP_CACHEDIR="$( cd "$AMP_CACHEDIR" && pwd )"
 AMP_BASEOS=${AMP_BASEOS:-"ubuntu-minimal"}
 
 if [ "$AMP_BASEOS" = "ubuntu-minimal" ]; then
-    export DIB_RELEASE=${AMP_DIB_RELEASE:-"jammy"}
+    export DIB_RELEASE=${AMP_DIB_RELEASE:-"noble"}
 elif [ "${AMP_BASEOS}" = "rhel" ]; then
     export DIB_RELEASE=${AMP_DIB_RELEASE:-"9"}
 elif [ "${AMP_BASEOS}" = "centos-minimal" ]; then
@@ -253,7 +275,21 @@ elif [ "${AMP_BASEOS}" = "rocky-container" ]; then
     export DIB_RELEASE=${AMP_DIB_RELEASE:-"9"}
 fi
 
-AMP_OUTPUTFILENAME=${AMP_OUTPUTFILENAME:-"$PWD/amphora-x64-haproxy.qcow2"}
+
+# Set DIB_REPOREF_amphora_agent to current git branch if not set
+if [ -z "$DIB_REPOREF_amphora_agent" ]; then
+    export DIB_REPOREF_amphora_agent=${BRANCH}
+fi
+
+
+
+if [ "$BRANCH" = "main" ]; then
+    export IMAGE_BRANCH=""
+else
+    export IMAGE_BRANCH="-${BRANCH}"
+fi
+
+AMP_OUTPUTFILENAME=${AMP_OUTPUTFILENAME:-"$PWD/qcp-amphora-${AMP_ARCH}${IMAGE_BRANCH}-v${IMAGE_VERSION}.qcow2"}
 
 AMP_IMAGETYPE=${AMP_IMAGETYPE:-"qcow2"}
 
@@ -452,7 +488,8 @@ fi
 
 # Add the Amphora Agent and Pyroute elements
 AMP_element_sequence="$AMP_element_sequence rebind-sshd"
-AMP_element_sequence="$AMP_element_sequence no-resolvconf"
+# Need DNS resolution for the alloy agent to work properly
+# AMP_element_sequence="$AMP_element_sequence no-resolvconf"
 AMP_element_sequence="$AMP_element_sequence amphora-agent"
 AMP_element_sequence="$AMP_element_sequence octavia-lib"
 AMP_element_sequence="$AMP_element_sequence sos"
@@ -512,10 +549,73 @@ if [ "$DIB_LOCAL_ELEMENTS" ]; then
     AMP_element_sequence="$AMP_element_sequence $DIB_LOCAL_ELEMENTS"
 fi
 
+# Install alloy
+AMP_element_sequence="$AMP_element_sequence alloy"
+
 # Set Grub timeout to 0 (no timeout) for fast boot times
 export DIB_GRUB_TIMEOUT=${DIB_GRUB_TIMEOUT:-0}
 
 # Build the image
+
+# Fetch Vault secrets and inject into alloy.conf
+fetch_vault_secret() {
+    local secret_path=$1
+    local key=$2
+    local vault_addr=${VAULT_ADDR:-}
+    local vault_token=${VAULT_TOKEN:-}
+
+    if [ -z "$vault_addr" ]; then
+        echo "VAULT_ADDR is not set"
+        exit 1
+    fi
+
+    if [ -z "$vault_token" ]; then
+        if [ -f "$HOME/.vault-token" ]; then
+            vault_token=$(cat "$HOME/.vault-token")
+        else
+            echo "VAULT_TOKEN is not set and ~/.vault-token not found"
+            exit 1
+        fi
+    fi
+
+    curl -s --header "X-Vault-Token: $vault_token" "$vault_addr/v1/$secret_path" | \
+        python3 -c "import sys,json; data=json.load(sys.stdin); d=data.get('data'); dd=d.get('data') if d else None; v=dd.get('$key') if dd else None; print(v) if v is not None else sys.exit(1)"
+}
+
+echo "Fetching Vault secrets for mimir and loki..."
+MIMIR_USERNAME=$(fetch_vault_secret "secret/data/qcp/global/mimir/prod-eu-west1" "username")
+MIMIR_PASSWORD=$(fetch_vault_secret "secret/data/qcp/global/mimir/prod-eu-west1" "password")
+MIMIR_URL=$(fetch_vault_secret "secret/data/qcp/global/mimir/prod-eu-west1" "url")
+
+LOKI_USERNAME=$(fetch_vault_secret "secret/data/qcp/global/loki/prod-eu-west1" "username")
+LOKI_PASSWORD=$(fetch_vault_secret "secret/data/qcp/global/loki/prod-eu-west1" "password")
+LOKI_URL=$(fetch_vault_secret "secret/data/qcp/global/loki/prod-eu-west1" "url")
+
+echo "Injecting Vault secrets into alloy.conf..."
+ALLOY_CONF_PATH="$OCTAVIA_ELEMENTS_PATH/alloy/static/alloy.conf"
+
+ENVIRONMENT=$DIB_REPOREF_amphora_agent
+if [ "$ENVIRONMENT" = "main" ]; then
+    ENVIRONMENT="prod"
+elif [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "qa" ] && [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "experimental" ]; then
+    ENVIRONMENT="dev"
+fi
+
+cp "${ALLOY_CONF_PATH}.sample" "$ALLOY_CONF_PATH"
+
+sed -i "s|%MIMIR_USERNAME%|$MIMIR_USERNAME|g" "$ALLOY_CONF_PATH"
+sed -i "s|%MIMIR_PASSWORD%|$MIMIR_PASSWORD|g" "$ALLOY_CONF_PATH"
+sed -i "s|%MIMIR_URL%|$MIMIR_URL|g" "$ALLOY_CONF_PATH"
+sed -i "s|%LOKI_USERNAME%|$LOKI_USERNAME|g" "$ALLOY_CONF_PATH"
+sed -i "s|%LOKI_PASSWORD%|$LOKI_PASSWORD|g" "$ALLOY_CONF_PATH"
+sed -i "s|%LOKI_URL%|$LOKI_URL|g" "$ALLOY_CONF_PATH"
+sed -i "s|%ENV%|$ENVIRONMENT|g" "$ALLOY_CONF_PATH"
+
+
+# Inject environment file into /etc/alloy/environment
+ENVIRONMENT_FILE_PATH="$OCTAVIA_ELEMENTS_PATH/alloy/static/environment"
+cp ${ENVIRONMENT_FILE_PATH}.sample "$ENVIRONMENT_FILE_PATH"
+sed -i "s|%ENV%|$ENVIRONMENT|g" "$ENVIRONMENT_FILE_PATH"
 
 export DIB_CLOUD_INIT_DATASOURCES=$CLOUD_INIT_DATASOURCES
 
@@ -532,6 +632,9 @@ disk-image-create "$AMP_LOGFILE" "$dib_trace_arg" -a "$AMP_ARCH" -o "$AMP_OUTPUT
 "$AMP_IMAGETYPE" --image-size "$AMP_IMAGESIZE" --image-cache "$AMP_CACHEDIR" "$AMP_DISABLE_TMP_FS" \
 "$AMP_element_sequence"
 
+rm "$ALLOY_CONF_PATH"
+rm "$ENVIRONMENT_FILE_PATH"
+
 popd > /dev/null # out of $TEMP
 rm -rf "$TEMP"
 
@@ -541,3 +644,4 @@ else
     echo "Successfully built the amphora using the $DIB_REPOREF_amphora_agent amphora-agent."
 fi
 echo "Amphora image size: `stat -c "%n %s" $AMP_OUTPUTFILENAME`"
+sha256sum "$AMP_OUTPUTFILENAME" | cut -d " " -f1 > "$AMP_OUTPUTFILENAME.SHA256SUM"

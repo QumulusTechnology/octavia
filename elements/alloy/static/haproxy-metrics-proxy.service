@@ -1,0 +1,18 @@
+[Unit]
+Description=HAProxy Metrics Proxy via socat
+After=network.target octavia-amphora.service
+
+[Service]
+Type=simple
+User=haproxy
+ExecStart=/usr/bin/socat \
+  TCP-LISTEN:8405,fork,reuseaddr,bind=127.0.0.1 \
+  exec:'ip netns exec amphora-haproxy socat STDIO "tcp-connect:127.0.0.1:8405"',nofork
+Restart=always
+RestartSec=5s
+AmbientCapabilities=CAP_SYS_ADMIN CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_NET_ADMIN
+
+
+[Install]
+WantedBy=multi-user.target

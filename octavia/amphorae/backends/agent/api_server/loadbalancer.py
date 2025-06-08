@@ -181,6 +181,24 @@ class Loadbalancer:
                 'message': "Error enabling octavia-keepalived service",
                 'details': e.output}, status=500)
 
+        # Update the alloy configuration
+        util.update_alloy_configuration(
+            lb_id,
+            flask.request.headers.get('X-Octavia-Cloud-FQDN'))
+
+        # Update the alloy service file
+        with open('/etc/systemd/system/alloy.service.d/override.conf', 'r') as f:
+            service_file = f.read()
+        service_file = service_file.replace('%LB_ID%', lb_id)
+        with open('/etc/systemd/system/alloy.service.d/override.conf', 'w') as f:
+            f.write(service_file)
+
+        util.run_systemctl_command('daemon-reload', '', False)
+        util.run_systemctl_command('enable alloy', '', False)
+        util.run_systemctl_command('enable haproxy-metrics-proxy', '', False)
+        util.run_systemctl_command('start haproxy-metrics-proxy', '', False)
+        util.run_systemctl_command('start alloy', '', False)
+
         res = webob.Response(json={'message': 'OK'}, status=202)
         res.headers['ETag'] = stream.get_md5()
 

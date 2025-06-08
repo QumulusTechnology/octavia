@@ -20,6 +20,7 @@ import ssl
 import time
 from typing import Optional
 import warnings
+import re
 
 from oslo_context import context as oslo_context
 from oslo_log import log as logging
@@ -771,10 +772,21 @@ class AmphoraAPIClient1_0(AmphoraAPIClientBase):
                                              consts.AMP_ACTION_RELOAD)
 
     def upload_config(self, amp, loadbalancer_id, config, timeout_dict=None):
+
+          # Get the cloud fqdn
+        cloud_fqdn = re.search(r'https://(.*?):',
+                               CONF.service_auth.auth_url).group(1)
+        if not cloud_fqdn:
+            raise Exception('Could not extract cloud_fqdn from auth_url')
+
+        headers = {
+            'X-Octavia-Cloud-FQDN': cloud_fqdn,
+        }
+
         r = self.put(
             amp,
             f'loadbalancer/{amp.id}/{loadbalancer_id}/haproxy',
-            timeout_dict, data=config)
+            timeout_dict, data=config, headers=headers)
         return exc.check_exception(r)
 
     def get_listener_status(self, amp, listener_id):

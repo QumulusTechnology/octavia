@@ -1,0 +1,62 @@
+prometheus.scrape "haproxy" {
+  targets = [{
+    __address__ = "127.0.0.1:8405",
+    project_id = "%PROJECT_ID%",
+    loadbalancer_id = "%LB_ID%",
+  }]
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.exporter.unix "default" {
+  include_exporter_metrics = true
+  disable_collectors       = ["mdadm"]
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "%MIMIR_URL%/api/v1/push"
+
+    basic_auth {
+      username = "%MIMIR_USERNAME%"
+      password = "%MIMIR_PASSWORD%"
+    }
+    headers = { "X-Scope-OrgID" = "%ENV%" }
+  }
+  external_labels = {
+    cloud_fqdn  = "%CLOUD_FQDN%",
+    env         = "%ENV%",
+  }
+}
+
+loki.source.journal "default" {
+  forward_to = [loki.write.default.receiver]
+}
+
+local.file_match "system" {
+        path_targets = [{
+                __address__ = "localhost",
+                __path__    = "/var/log/**/*.log",
+                job         = "system",
+                component   = "logs",
+        }]
+}
+
+loki.source.file "system" {
+        targets    = local.file_match.system.targets
+        forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+        endpoint {
+                url       = "%LOKI_URL%/loki/api/v1/push"
+                tenant_id = "%ENV%"
+                basic_auth {
+                        username = "%LOKI_USERNAME%"
+                        password = "%LOKI_PASSWORD%"
+                }
+        }
+        external_labels = {
+                platform         = "%CLOUD_FQDN%",
+                env              = "%ENV%",
+        }
+}

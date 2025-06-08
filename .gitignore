@@ -41,3 +41,12 @@ tempest.log
 # Files created by releasenotes build
 releasenotes/build
 api-ref/build
+
+
+**/amphora-x64-haproxy*.d
+**/diskimage-create.*
+**/amphora-*.qcow2.SHA256SUM
+
+elements/alloy/static/alloy.conf
+elements/alloy/static/environment
+**/qcp-amphora*

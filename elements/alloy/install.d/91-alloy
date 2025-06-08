@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+# This script will configure alloy to run as a systemd service
+
+# Create the Alloy configuration file
+mkdir -p /etc/alloy
+# The static files are copied to the root of the image
+cp /alloy.conf /etc/alloy/config.alloy
+
+cp /environment /etc/alloy/environment
+
+# Override the systemd service file
+mkdir -p /etc/systemd/system/alloy.service.d
+# The static files are copied to the root of the image
+cp /override.conf /etc/systemd/system/alloy.service.d/override.conf
+cp /haproxy-metrics-proxy.service /etc/systemd/system/haproxy-metrics-proxy.service
+
+systemctl disable alloy
