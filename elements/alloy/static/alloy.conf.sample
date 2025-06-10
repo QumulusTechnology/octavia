@@ -1,8 +1,6 @@
 prometheus.scrape "haproxy" {
   targets = [{
     __address__ = "127.0.0.1:8405",
-    project_id = "%PROJECT_ID%",
-    loadbalancer_id = "%LB_ID%",
   }]
   forward_to = [prometheus.remote_write.default.receiver]
 }
@@ -25,6 +23,8 @@ prometheus.remote_write "default" {
   external_labels = {
     cloud_fqdn  = "%CLOUD_FQDN%",
     env         = "%ENV%",
+    project_id = "%PROJECT_ID%",
+    loadbalancer_id = "%LB_ID%",
   }
 }
 
@@ -58,5 +58,7 @@ loki.write "default" {
         external_labels = {
                 platform         = "%CLOUD_FQDN%",
                 env              = "%ENV%",
+                project_id = "%PROJECT_ID%",
+                loadbalancer_id = "%LB_ID%",
         }
 }
